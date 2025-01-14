@@ -5,6 +5,7 @@ use iced::widget::{
 };
 use iced::{Application, Element, Fill, Subscription, Task, Theme};
 use sqlx::postgres::PgPool;
+use std::sync::Arc;
 
 fn main() -> iced::Result {
     iced::application(
@@ -48,7 +49,7 @@ struct IcedLogin {
     user: User,
     user_authenticated: bool,
     // Obviously when sharing this connection we need to use a smartpointer
-    pgpool: Option<PgPool>,
+    pgpool: Option<Arc<PgPool>>,
 }
 
 #[derive(Debug, Clone)]
@@ -72,6 +73,8 @@ enum Message {
     HandleInputLastName(String),
     SwitchFromLoginToRegister,
     SwitchFromRegisterToLogin,
+    ConnectoToDatabase,
+    DatabaseConnectionResult(Result<PgPool, Error>),
 }
 
 impl IcedLogin {
@@ -84,13 +87,27 @@ impl IcedLogin {
                 user_authenticated: false,
                 pgpool: None,
             },
-            // Task::perform ( start the database connection)
-            Task::none(),
+            // Start the Database Connection
+            Task::perform(connect_to_db(), Message::DatabaseConnectionResult),
         )
     }
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
+            // TODO: We don't really need this right? But what happens if during the working of the
+            // application, the database connection falls? Then we can still call this function and
+            // run
+            Message::ConnectoToDatabase => {
+                Task::perform(connect_to_db(), Message::DatabaseConnectionResult)
+            }
+            Message::DatabaseConnectionResult(result) => {
+                //
+                if let Ok(result) = result {
+                    self.pgpool = Some(Arc::new(result));
+                    println!("We have connected to the Database!");
+                }
+                Task::none()
+            }
             Message::ShowLogin => {
                 self.is_login_form_shown = true;
                 Task::none()
@@ -244,9 +261,15 @@ where
     .into()
 }
 
-// TODO: Connect to the Database
+// TODO: Take the database_url from the environment variables
 async fn connect_to_db() -> Result<PgPool, Error> {
-    todo!()
+    let pool = PgPool::connect("postgres://alex:1234@localhost/icedforms").await;
+    if let Ok(pool) = pool {
+        Ok(pool)
+    } else {
+        // TODO: handle the error better for connecting to the DB Better
+        panic!()
+    }
 }
 
 async fn save_user(user: User) -> Result<uuid::Uuid, Error> {
