@@ -1,6 +1,5 @@
 #![allow(dead_code, unused_variables, unused_imports)]
 
-use iced::widget::shader::wgpu::core::command::PassChannel;
 use iced::widget::{
     button, center, column, container, horizontal_space, row, stack, text, text_input,
 };
@@ -19,6 +18,7 @@ fn main() -> iced::Result {
 
 #[derive(Debug, Clone, Default)]
 struct User {
+    user_id: Option<uuid::Uuid>,
     first_name: String,
     last_name: String,
     telephone: String,
@@ -28,6 +28,8 @@ struct User {
 impl User {
     fn new() -> Self {
         Self {
+            // The initial state where the user is not logged in
+            user_id: None,
             first_name: String::new(),
             last_name: String::new(),
             telephone: String::new(),
@@ -235,4 +237,19 @@ where
             .center_y(Fill)
     ]
     .into()
+}
+
+async fn save_user(user: User) -> Result<uuid::Uuid, Error> {
+    // save the user data to the database
+    todo!()
+}
+
+async fn authenticate_user(telephone: String, password: String) -> Result<User, Error> {
+    // check if the password corresponds to the telephone
+    // return the User data
+    todo!()
+}
+
+async fn get_all_users() -> Result<Vec<User>, Error> {
+    todo!()
 }

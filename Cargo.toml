@@ -4,4 +4,24 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-iced = "0.13.1"
+iced = { version = "0.14.0-dev", default-features = false, features = [
+    "wgpu",
+    "tiny-skia",
+    "fira-sans",
+    "tokio",
+    "lazy",
+    "advanced",
+    "markdown",
+    "image",
+] }
+
+sqlx = { version = "0.8.3", features = ["postgres", "runtime-tokio", "uuid", "time", "migrate", "macros", "bigdecimal"] }
+uuid = { version = "1.11.1", features = ["v4", "fast-rng"] }
+
+# [patch.crates-io]
+# iced = { git = "https://github.com/iced-rs/iced", rev = "f2c9b6b2ffc50d67d9789e77cb55eeb2a0ebe470" }
+# iced_core = { git = "https://github.com/iced-rs/iced", rev = "f2c9b6b2ffc50d67d9789e77cb55eeb2a0ebe470" }
+
+[patch.crates-io]
+iced = { git = "https://github.com/iced-rs/iced", rev = "e722c4ee4f80833ba0b1013cadd546ebc3f490ce" }
+iced_core = { git = "https://github.com/iced-rs/iced", rev = "e722c4ee4f80833ba0b1013cadd546ebc3f490ce" }
