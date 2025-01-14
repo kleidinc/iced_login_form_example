@@ -4,6 +4,7 @@ use iced::widget::{
     button, center, column, container, horizontal_space, row, stack, text, text_input,
 };
 use iced::{Application, Element, Fill, Subscription, Task, Theme};
+use sqlx::postgres::PgPool;
 
 fn main() -> iced::Result {
     iced::application(
@@ -46,6 +47,8 @@ struct IcedLogin {
     is_register_form_shown: bool,
     user: User,
     user_authenticated: bool,
+    // Obviously when sharing this connection we need to use a smartpointer
+    pgpool: Option<PgPool>,
 }
 
 #[derive(Debug, Clone)]
@@ -79,7 +82,9 @@ impl IcedLogin {
                 is_register_form_shown: false,
                 user: User::new(),
                 user_authenticated: false,
+                pgpool: None,
             },
+            // Task::perform ( start the database connection)
             Task::none(),
         )
     }
@@ -237,6 +242,11 @@ where
             .center_y(Fill)
     ]
     .into()
+}
+
+// TODO: Connect to the Database
+async fn connect_to_db() -> Result<PgPool, Error> {
+    todo!()
 }
 
 async fn save_user(user: User) -> Result<uuid::Uuid, Error> {
