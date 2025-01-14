@@ -1,1 +1,1 @@
-This is part of the [Master Iced Paper](../iced_paper/README.md).
+This is part of the [Master Iced Paper](https://github.com/kleidinc/iced_paper).
