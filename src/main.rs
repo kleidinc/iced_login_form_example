@@ -50,6 +50,7 @@ struct IcedLogin {
     user_authenticated: bool,
     // Obviously when sharing this connection we need to use a smartpointer
     pgpool: Option<Arc<PgPool>>,
+    is_connected_to_db: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -65,7 +66,7 @@ enum Message {
     LoginResult(Result<User, Error>),
     ShowRegister,
     Register,
-    RegistrationResult(Result<User, Error>),
+    RegistrationResult(Result<uuid::Uuid, Error>),
     Logout,
     HandleInputTelephone(String),
     HandleInputPassword(String),
@@ -86,6 +87,7 @@ impl IcedLogin {
                 user: User::new(),
                 user_authenticated: false,
                 pgpool: None,
+                is_connected_to_db: false,
             },
             // Start the Database Connection
             Task::perform(connect_to_db(), Message::DatabaseConnectionResult),
@@ -104,9 +106,15 @@ impl IcedLogin {
                 //
                 if let Ok(result) = result {
                     self.pgpool = Some(Arc::new(result));
-                    println!("We have connected to the Database!");
+                    println!("Connected to the Database! ");
+                    self.is_connected_to_db = true;
+                    Task::none()
+                } else {
+                    self.is_connected_to_db = false;
+                    // BUG: This could create an infinite loop ... if no db
+                    println!("This could create a loop though, reconnecting?");
+                    Task::perform(connect_to_db(), Message::DatabaseConnectionResult)
                 }
-                Task::none()
             }
             Message::ShowLogin => {
                 self.is_login_form_shown = true;
@@ -130,10 +138,31 @@ impl IcedLogin {
             }
             Message::Register => {
                 self.is_register_form_shown = false;
-                Task::none()
+                if let Some(arc_pgpool) = &self.pgpool {
+                    // let pgpool = Arc::clone(&arc_pgpool);
+                    // let pgpool_deref = *pgpool;
+                    Task::perform(
+                        register_user(
+                            self.user.first_name.clone(),
+                            self.user.last_name.clone(),
+                            self.user.telephone.clone(),
+                            self.user.password.clone(),
+                            Arc::clone(arc_pgpool),
+                        ),
+                        Message::RegistrationResult,
+                    )
+                } else {
+                    println!("We dont have a database connection so the shit hit the fan");
+                    Task::none()
+                }
             }
             Message::RegistrationResult(result) => {
-                //
+                if let Ok(result) = result {
+                    self.user.user_id = Some(result);
+                    println!("The user_id created {:?}", result);
+                } else {
+                    panic!()
+                }
                 Task::none()
             }
             Message::HandleInputTelephone(telephone) => {
@@ -216,6 +245,14 @@ impl IcedLogin {
                     })
                 ],
                 row![
+                    text("Connection to database:"),
+                    text(if self.is_connected_to_db {
+                        "Connected"
+                    } else {
+                        "Not Connected"
+                    }),
+                ],
+                row![
                     button("Login").on_press(Message::ShowLogin),
                     button("Register").on_press(Message::ShowRegister)
                 ]
@@ -272,9 +309,32 @@ async fn connect_to_db() -> Result<PgPool, Error> {
     }
 }
 
-async fn save_user(user: User) -> Result<uuid::Uuid, Error> {
+async fn register_user<'a>(
+    first_name: String,
+    last_name: String,
+    telephone: String,
+    password: String,
+    pgpool: Arc<PgPool>,
+) -> Result<uuid::Uuid, Error> {
     // save the user data to the database
-    todo!()
+    let rec = sqlx::query!(
+        r#"
+INSERT INTO "user"(first_name, last_name, telephone, password)
+VALUES ($1, $2, $3, $4)
+RETURNING user_id
+    "#,
+        first_name,
+        last_name,
+        telephone,
+        password,
+    )
+    .fetch_one(&*pgpool)
+    .await;
+    if let Ok(result) = rec {
+        Ok(result.user_id)
+    } else {
+        panic!()
+    }
 }
 
 async fn authenticate_user(telephone: String, password: String) -> Result<User, Error> {
